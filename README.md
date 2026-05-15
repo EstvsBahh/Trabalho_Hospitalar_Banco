@@ -1,23 +1,67 @@
 # Trabalho_Hospitalar_Banco
 
-----Estrutura da Arquitetura----
+# API Hospital - Sprint 3
 
-Banco 1 (Firebase): Usado apenas para Autenticação. O enfermeiro faz login aqui para receber um token que permite salvar dados no Banco 2
+## Descrição
 
-Banco 2 (Escrita - Postgress): Onde os dados completos do paciente (sintomas, pressão, classificação de risco) são salvos.
+Projeto desenvolvido para a disciplina de Banco de Dados II.
 
-Banco 3 (Leitura - MySQL): Um banco mais simples que contém apenas o necessário para a TV da sala de espera: Nome do paciente e número do consultório.
+A aplicação utiliza:
 
+- Firebase Authentication
+- API Node.js com Express
+- PostgreSQL como banco de escrita
+- MySQL como banco de leitura
 
-----Cronograma de Desenvolvimento----
+---
 
-Sprint 1: Modelagem e Login
+## Arquitetura
 
-Sprint 2: O CRUD
+Firebase → API Node.js → PostgreSQL → sincronização automática → MySQL
 
-Sprint 3: Sincronização Automática
+---
 
-Sprint 4: Front-end e Resiliência
+## Método de Sincronização
 
+O método escolhido foi sincronização através da lógica da própria API.
 
-----
+Após o cadastro de um paciente no PostgreSQL, a API executa automaticamente um INSERT simplificado no MySQL.
+
+Esse modelo foi escolhido por:
+
+- simplicidade de implementação;
+- baixa latência;
+- facilidade de manutenção;
+- demonstração clara da separação entre escrita e leitura.
+
+---
+
+## Fluxo da Aplicação
+
+1. Usuário realiza login via Firebase
+2. API valida o token JWT
+3. Dados são salvos no PostgreSQL
+4. API sincroniza automaticamente no MySQL
+5. Painel realiza consultas apenas no banco de leitura
+
+---
+
+## Tecnologias Utilizadas
+
+- Node.js
+- Express
+- Firebase Authentication
+- PostgreSQL
+- MySQL
+- Thunder Client
+
+---
+
+## Demonstração
+
+Durante a demonstração:
+
+- o paciente é cadastrado via API;
+- o dado é salvo no PostgreSQL;
+- a sincronização automática ocorre;
+- o dado aparece no MySQL.
