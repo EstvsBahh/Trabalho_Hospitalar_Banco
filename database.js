@@ -1,12 +1,17 @@
+const { Pool } = require("pg");
 const mysql = require("mysql2");
+
 require("dotenv").config();
 
-const dbEscrita = mysql.createConnection({
+const dbEscrita = new Pool({
     host: process.env.DB_ESCRITA_HOST,
     port: process.env.DB_ESCRITA_PORT,
     user: process.env.DB_ESCRITA_USER,
     password: process.env.DB_ESCRITA_PASSWORD,
-    database: process.env.DB_ESCRITA_DATABASE
+    database: process.env.DB_ESCRITA_DATABASE,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 const dbLeitura = mysql.createConnection({
@@ -17,13 +22,13 @@ const dbLeitura = mysql.createConnection({
     database: process.env.DB_LEITURA_DATABASE
 });
 
-dbEscrita.connect((erro) => {
-    if (erro) {
-        console.log("Erro Banco Escrita:", erro);
-    } else {
-        console.log("Banco Escrita conectado");
-    }
-});
+dbEscrita.connect()
+    .then(() => {
+        console.log("Banco Escrita PostgreSQL conectado");
+    })
+    .catch((erro) => {
+        console.log("Erro Banco Escrita PostgreSQL:", erro);
+    });
 
 dbLeitura.connect((erro) => {
     if (erro) {
