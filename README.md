@@ -1,7 +1,5 @@
 # Trabalho_Hospitalar_Banco
 
-# API Hospital - Sprint 3
-
 ## Descrição
 
 Projeto desenvolvido para a disciplina de Banco de Dados II.
