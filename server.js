@@ -69,63 +69,59 @@ async function verificarToken(req, res, next) {
     }
 }
 
-app.post("/pacientes", verificarToken, (req, res) => {
-
+app.post("/pacientes", verificarToken, async (req, res) => {
     const { nome, data_nascimento } = req.body;
 
-    const sqlEscrita = `
-        INSERT INTO nome_paciente
-        (nome, data_nascimento)
-        VALUES (?, ?)
-    `;
+    try {
+        const sqlEscrita = `
+            INSERT INTO nome_paciente
+            (nome, data_nascimento)
+            VALUES ($1, $2)
+            RETURNING id
+        `;
 
-    dbEscrita.query(sqlEscrita, [nome, data_nascimento], (erro, resultado) => {
+        const resultado = await dbEscrita.query(sqlEscrita, [nome, data_nascimento]);
 
-        if (erro) {
+        console.log("Paciente salvo no banco de escrita PostgreSQL");
 
-            console.log("Erro banco escrita:", erro);
-
-            return res.status(500).json({
-                error: "Erro ao cadastrar paciente"
-            });
-        }
-
-        console.log("Paciente salvo no banco de escrita");
-
-        const idPaciente = resultado.insertId;
-
+        const idPaciente = resultado.rows[0].id;
         const senha = `A00${idPaciente}`;
 
         const sqlLeitura = `
             INSERT INTO painel_chamada
-            (id, nome_paciente, senha, consultorio, status)
-            VALUES (?, ?, ?, ?, ?)
+            (nome_paciente, senha, consultorio, status)
+            VALUES (?, ?, ?, ?)
         `;
 
         dbLeitura.query(
             sqlLeitura,
-            [idPaciente, nome, senha, 1, 'Chamado'],
-
+            [nome, senha, 1, "Chamado"],
             (erroLeitura) => {
-
                 if (erroLeitura) {
-
-                    console.log("Erro sincronização:", erroLeitura);
+                    console.log("Erro sincronização MySQL:", erroLeitura);
 
                     return res.status(500).json({
-                        error: "Erro ao sincronizar banco leitura"
+                        error: "Paciente salvo no PostgreSQL, mas erro ao sincronizar no MySQL"
                     });
                 }
 
-                console.log("Paciente sincronizado com banco de leitura");
+                console.log("Paciente sincronizado com banco de leitura MySQL");
 
                 res.json({
-                    mensagem: "Paciente cadastrado e sincronizado",
-                    id: idPaciente
+                    mensagem: "Paciente cadastrado no PostgreSQL e sincronizado no MySQL",
+                    id: idPaciente,
+                    senha: senha
                 });
             }
         );
-    });
+
+    } catch (erro) {
+        console.log("Erro ao cadastrar no PostgreSQL:", erro);
+
+        res.status(500).json({
+            error: "Erro ao cadastrar paciente no PostgreSQL"
+        });
+    }
 });
 
 app.get("/painel", (req, res) => {
