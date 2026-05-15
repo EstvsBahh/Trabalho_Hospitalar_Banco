@@ -70,25 +70,61 @@ async function verificarToken(req, res, next) {
 }
 
 app.post("/pacientes", verificarToken, (req, res) => {
+
     const { nome, data_nascimento } = req.body;
 
-    const sql = `
-        INSERT INTO nome_paciente 
-        (nome, data_nascimento) 
+    const sqlEscrita = `
+        INSERT INTO nome_paciente
+        (nome, data_nascimento)
         VALUES (?, ?)
     `;
 
-    dbEscrita.query(sql, [nome, data_nascimento], (erro, resultado) => {
+    dbEscrita.query(sqlEscrita, [nome, data_nascimento], (erro, resultado) => {
+
         if (erro) {
+
+            console.log("Erro banco escrita:", erro);
+
             return res.status(500).json({
                 error: "Erro ao cadastrar paciente"
             });
         }
 
-        res.json({
-            mensagem: "Paciente cadastrado com sucesso",
-            id: resultado.insertId
-        });
+        console.log("Paciente salvo no banco de escrita");
+
+        const idPaciente = resultado.insertId;
+
+        const senha = `A00${idPaciente}`;
+
+        const sqlLeitura = `
+            INSERT INTO painel_chamada
+            (id, nome_paciente, senha, consultorio, status)
+            VALUES (?, ?, ?, ?, ?)
+        `;
+
+        dbLeitura.query(
+            sqlLeitura,
+            [idPaciente, nome, senha, 1, 'Chamado'],
+
+            (erroLeitura) => {
+
+                if (erroLeitura) {
+
+                    console.log("Erro sincronização:", erroLeitura);
+
+                    return res.status(500).json({
+                        error: "Erro ao sincronizar banco leitura"
+                    });
+                }
+
+                console.log("Paciente sincronizado com banco de leitura");
+
+                res.json({
+                    mensagem: "Paciente cadastrado e sincronizado",
+                    id: idPaciente
+                });
+            }
+        );
     });
 });
 
