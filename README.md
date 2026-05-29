@@ -79,7 +79,7 @@ transações complexas.
 
 ## Sincronização (Consistência Eventual)
 
-M�todo: duplo — sincronização imediata na rota POST /triagem
+M�todo: duplo — sincronização imediata na rota POST /triagem
 + CRON automático a cada 10 segundos.
 Após cada INSERT no PostgreSQL, os dados são copiados
 imediatamente para o MySQL. O CRON garante consistência em
