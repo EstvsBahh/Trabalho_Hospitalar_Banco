@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Triagem Hospitalar — Painel do Enfermeiro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f0f2f5; color: #333; }
+
+    header {
+      background: #1565c0; color: white; padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 { font-size: 18px; }
+    #status-bancos { font-size: 12px; display: flex; gap: 14px; align-items: center; }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+    .dot.ok { background: #4caf50; }
+    .dot.fail { background: #f44336; }
+    .dot.aguard { background: #ffc107; }
+
+    /* LOGIN */
+    #login-box {
+      max-width: 400px; margin: 60px auto; background: white;
+      border-radius: 8px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    #login-box h2 { margin-bottom: 6px; color: #1565c0; }
+    #login-box p { font-size: 13px; color: #666; margin-bottom: 20px; }
+
+    label { display: block; margin-bottom: 4px; font-size: 13px; font-weight: bold; color: #444; }
+    input, select, textarea {
+      width: 100%; padding: 9px 12px; border: 1px solid #ccc; border-radius: 4px;
+      font-size: 14px; margin-bottom: 14px;
+    }
+    textarea { resize: vertical; height: 70px; }
+    button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; }
+    .btn-primary { background: #1565c0; color: white; width: 100%; }
+    .btn-primary:hover { background: #0d47a1; }
+    .btn-primary:disabled { background: #90a4ae; cursor: not-allowed; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn-chamar  { background: #2e7d32; color: white; }
+    .btn-chamar:hover { background: #1b5e20; }
+    .btn-finalizar { background: #e53935; color: white; }
+    .btn-finalizar:hover { background: #b71c1c; }
+    .logout-btn { background: rgba(255,255,255,.2); color: white; font-size: 12px; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; }
+    .logout-btn:hover { background: rgba(255,255,255,.35); }
+
+    /* APP */
+    #app { display: none; max-width: 1150px; margin: 0 auto; padding: 20px; }
+    .aviso {
+      padding: 10px 16px; border-radius: 4px; margin-bottom: 14px;
+      font-size: 13px; display: none;
+    }
+    .aviso.show-fallback  { display: block; background: #fff3e0; border-left: 4px solid #ff9800; color: #e65100; }
+    .aviso.show-manutencao { display: block; background: #ffebee; border-left: 4px solid #f44336; color: #b71c1c; }
+
+    .grid { display: grid; grid-template-columns: 360px 1fr; gap: 20px; }
+    .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    .card h3 { margin-bottom: 16px; color: #1565c0; font-size: 15px; border-bottom: 2px solid #e3f2fd; padding-bottom: 8px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* TABELA */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #e3f2fd; color: #1565c0; padding: 8px 10px; text-align: left; white-space: nowrap; }
+    td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    tr:hover td { background: #fafafa; }
+
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 12px;
+      font-size: 11px; font-weight: bold; color: white; white-space: nowrap;
+    }
+    .badge.Vermelho, .badge.vermelho { background: #c62828; }
+    .badge.Amarelo,  .badge.amarelo  { background: #f57f17; }
+    .badge.Verde,    .badge.verde    { background: #2e7d32; }
+    .badge.Chamado,  .badge.chamado  { background: #1565c0; }
+    .badge.Finalizado, .badge.finalizado, .badge.Atendido { background: #616161; }
+    .badge.Aguardando, .badge.aguardando { background: #795548; }
+
+    .fonte-tag {
+      font-size: 11px; padding: 2px 8px; border-radius: 10px;
+      margin-left: 6px; font-weight: normal;
+      background: #e8f5e9; color: #2e7d32;
+    }
+    .fonte-tag.fallback { background: #fff3e0; color: #e65100; }
+
+    .msg-erro { color: #f44336; font-size: 13px; margin-top: 6px; }
+    .msg-ok   { color: #2e7d32; font-size: 13px; margin-top: 6px; }
+
+    /* RESUMO */
+    .resumo-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .resumo-item {
+      padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: bold; color: white;
+    }
+    .resumo-item.Aguardando { background: #795548; }
+    .resumo-item.Chamado    { background: #1565c0; }
+    .resumo-item.Atendido   { background: #616161; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏥 Triagem Hospitalar — Painel do Enfermeiro</h1>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <div id="status-bancos">
+      <span><span class="dot aguard" id="dot-pg"></span>PostgreSQL</span>
+      <span><span class="dot aguard" id="dot-mysql"></span>MySQL</span>
+      <span><span class="dot aguard" id="dot-fb"></span>Firebase</span>
+    </div>
+    <button class="logout-btn" onclick="logout()">Sair</button>
+  </div>
+</header>
+
+<!-- LOGIN -->
+<div id="login-box">
+  <h2>🔒 Login</h2>
+  <p>Acesso exclusivo para enfermeiros e médicos.</p>
+  <label>E-mail</label>
+  <input type="email" id="email" placeholder="enfermeiro@hospital.com">
+  <label>Senha</label>
+  <input type="password" id="senha" placeholder="••••••••">
+  <button class="btn-primary" onclick="login()">Entrar</button>
+  <p id="msg-login" class="msg-erro"></p>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div id="aviso-fallback" class="aviso">
+    ⚠️ MySQL indisponível — dados lidos do PostgreSQL (modo fallback)
+  </div>
+  <div id="aviso-manutencao" class="aviso">
+    🔧 PostgreSQL indisponível — inserções desabilitadas. Visualização continua funcionando.
+  </div>
+
+  <!-- RESUMO -->
+  <div class="resumo-bar" id="resumo-bar"></div>
+
+  <div class="grid">
+    <!-- FORMULÁRIO -->
+    <div class="card">
+      <h3>📋 Nova Triagem</h3>
+
+      <label>Nome completo</label>
+      <input type="text" id="nome" placeholder="Nome do paciente">
+
+      <label>CPF (só números)</label>
+      <input type="text" id="cpf" placeholder="12345678900" maxlength="11">
+
+      <label>Data de nascimento</label>
+      <input type="date" id="nascimento">
+
+      <label>Sintomas</label>
+      <textarea id="sintomas" placeholder="Descreva os sintomas..."></textarea>
+
+      <div class="form-row">
+        <div>
+          <label>Pressão (ex: 120/80)</label>
+          <input type="text" id="pressao" placeholder="120/80">
+        </div>
+        <div>
+          <label>Temperatura (°C)</label>
+          <input type="number" id="temperatura" step="0.1" placeholder="36.5">
+        </div>
+        <div>
+          <label>Saturação SpO2 (%)</label>
+          <input type="number" id="saturacao" placeholder="98">
+        </div>
+        <div>
+          <label>Consultório</label>
+          <input type="number" id="consultorio" placeholder="1" value="1">
+        </div>
+      </div>
+
+      <label>Classificação de Risco</label>
+      <select id="classificacao">
+        <option value="Verde">🟢 Verde — Não urgente</option>
+        <option value="Amarelo">🟡 Amarelo — Urgente</option>
+        <option value="Vermelho">🔴 Vermelho — Emergência</option>
+      </select>
+
+      <button class="btn-primary" id="btn-triagem" onclick="cadastrarTriagem()" style="margin-top:4px;">
+        Registrar Triagem
+      </button>
+      <p id="msg-triagem"></p>
+    </div>
+
+    <!-- LISTA DE ATENDIMENTOS -->
+    <div class="card">
+      <h3>
+        📊 Atendimentos
+        <span id="fonte-leitura" class="fonte-tag"></span>
+        <button onclick="carregarAtendimentos()" style="float:right;background:#e3f2fd;color:#1565c0;font-size:11px;padding:4px 10px;border:none;border-radius:4px;cursor:pointer;">↻ Atualizar</button>
+      </h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Paciente</th><th>Senha</th><th>Risco</th>
+            <th>Status</th><th>Consultório</th><th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-atendimentos">
+          <tr><td colspan="7" style="text-align:center;color:#999;">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "http://localhost:5000";
+let tokenAtual = null;
+
+// =====================================================
+// LOGIN — chama POST /login do Flask
+// =====================================================
+async function login() {
+  const email = document.getElementById("email").value;
+  const senha = document.getElementById("senha").value;
+  const msg = document.getElementById("msg-login");
+  msg.textContent = "Autenticando...";
+  msg.className = "";
+
+  try {
+    const r = await fetch(`${API}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: senha })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "Erro");
+
+    tokenAtual = d.token;
+    document.getElementById("login-box").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    document.getElementById("dot-fb").className = "dot ok";
+
+    verificarBancos();
+    carregarAtendimentos();
+    carregarResumo();
+    setInterval(carregarAtendimentos, 8000);
+    setInterval(verificarBancos, 5000);
+    setInterval(carregarResumo, 15000);
+  } catch(e) {
+    msg.textContent = "Erro: " + e.message;
+    msg.className = "msg-erro";
+  }
+}
+
+function logout() { tokenAtual = null; location.reload(); }
+
+// =====================================================
+// STATUS DOS BANCOS
+// =====================================================
+async function verificarBancos() {
+  try {
+    const r = await fetch(`${API}/health`);
+    const h = await r.json();
+
+    document.getElementById("dot-pg").className    = "dot " + (h.postgresql ? "ok" : "fail");
+    document.getElementById("dot-mysql").className = "dot " + (h.mysql ? "ok" : "fail");
+
+    document.getElementById("aviso-fallback").className =
+      "aviso" + (!h.mysql && h.postgresql ? " show-fallback" : "");
+    document.getElementById("aviso-manutencao").className =
+      "aviso" + (!h.postgresql ? " show-manutencao" : "");
+
+    document.getElementById("btn-triagem").disabled = !h.postgresql;
+  } catch(e) {}
+}
+
+// =====================================================
+// RESUMO POR STATUS
+// =====================================================
+async function carregarResumo() {
+  try {
+    const r = await fetch(`${API}/resumo`);
+    if (!r.ok) return;
+    const dados = await r.json();
+    const bar = document.getElementById("resumo-bar");
+    bar.innerHTML = dados.map(d =>
+      `<span class="resumo-item ${d.status}">${d.status}: ${d.total}</span>`
+    ).join("");
+  } catch(e) {}
+}
+
+// =====================================================
+// CADASTRAR TRIAGEM — POST /triagem
+// =====================================================
+async function cadastrarTriagem() {
+  const msg = document.getElementById("msg-triagem");
+  msg.textContent = "";
+
+  const nome       = document.getElementById("nome").value.trim();
+  const cpf        = document.getElementById("cpf").value.replace(/\D/g, "");
+  const nascimento = document.getElementById("nascimento").value;
+
+  if (!nome || !cpf || !nascimento) {
+    msg.textContent = "Nome, CPF e data de nascimento são obrigatórios.";
+    msg.className = "msg-erro"; return;
+  }
+  if (cpf.length !== 11) {
+    msg.textContent = "CPF deve ter 11 dígitos.";
+    msg.className = "msg-erro"; return;
+  }
+
+  const body = {
+    nome_completo: nome,
+    cpf: cpf,
+    data_nascimento: nascimento,
+    sintomas: document.getElementById("sintomas").value,
+    sinais_vitais: {
+      pressao:     document.getElementById("pressao").value,
+      temperatura: document.getElementById("temperatura").value,
+      saturacao:   document.getElementById("saturacao").value
+    },
+    classificacao_risco: document.getElementById("classificacao").value,
+    consultorio_destino: parseInt(document.getElementById("consultorio").value) || 1
+  };
+
+  try {
+    const r = await fetch(`${API}/triagem`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + tokenAtual },
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "Erro");
+
+    msg.textContent = `✅ Paciente cadastrado! Senha: ${d.senha} | ID: ${d.id}`;
+    msg.className = "msg-ok";
+    // limpa o formulário
+    ["nome","cpf","nascimento","sintomas","pressao","temperatura","saturacao"].forEach(id => {
+      document.getElementById(id).value = "";
+    });
+    carregarAtendimentos();
+    carregarResumo();
+  } catch(e) {
+    msg.textContent = "Erro: " + e.message;
+    msg.className = "msg-erro";
+  }
+}
+
+// =====================================================
+// LISTAR ATENDIMENTOS — GET /pacientes (PostgreSQL)
+// =====================================================
+async function carregarAtendimentos() {
+  try {
+    const r = await fetch(`${API}/pacientes`);
+    const dados = await r.json();
+    const tbody = document.getElementById("tabela-atendimentos");
+    const fonteTag = document.getElementById("fonte-leitura");
+
+    const isFallback = dados.length > 0 && !dados[0].classificacao_risco;
+    fonteTag.textContent = isFallback ? "⚠ fallback MySQL" : "PostgreSQL";
+    fonteTag.className = "fonte-tag" + (isFallback ? " fallback" : "");
+
+    if (!dados.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999">Nenhum atendimento.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = dados.map(a => {
+      const id     = a.id_atendimento || a.id;
+      const nome   = a.nome_completo  || a.nome_paciente;
+      const senha  = a.senha          || `A00${id}`;
+      const risco  = a.classificacao_risco || "—";
+      const status = a.status_atendimento  || a.status || "—";
+      const cons   = a.consultorio_destino || a.consultorio || "—";
+      return `
+        <tr>
+          <td>${id}</td>
+          <td><strong>${nome}</strong></td>
+          <td><code>${senha}</code></td>
+          <td><span class="badge ${risco}">${risco}</span></td>
+          <td><span class="badge ${status}">${status}</span></td>
+          <td>${cons}</td>
+          <td style="white-space:nowrap">
+            ${status === "Aguardando"
+              ? `<button class="btn-sm btn-chamar" onclick="atualizarStatus(${id},'Chamado')">Chamar</button>`
+              : ""}
+            ${status === "Chamado"
+              ? `<button class="btn-sm btn-finalizar" onclick="atualizarStatus(${id},'Atendido')">Finalizar</button>`
+              : ""}
+          </td>
+        </tr>`;
+    }).join("");
+  } catch(e) {
+    console.error("Erro ao carregar atendimentos:", e);
+  }
+}
+
+// =====================================================
+// ATUALIZAR STATUS — PUT /triagem/:id
+// =====================================================
+async function atualizarStatus(id, status) {
+  try {
+    await fetch(`${API}/triagem/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + tokenAtual },
+      body: JSON.stringify({ status_atendimento: status })
+    });
+    carregarAtendimentos();
+    carregarResumo();
+  } catch(e) { alert("Erro: " + e.message); }
+}
+</script>
+</body>
+</html>

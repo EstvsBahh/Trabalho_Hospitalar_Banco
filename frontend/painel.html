@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel de Chamadas — Sala de Espera</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0d1b2a; color: white; font-family: Arial, sans-serif; min-height: 100vh; padding: 24px; }
+
+    header { text-align: center; margin-bottom: 32px; }
+    header h1 { font-size: 38px; color: #64b5f6; letter-spacing: 3px; }
+    header p  { color: #90a4ae; margin-top: 6px; font-size: 16px; }
+    #relogio  { font-size: 30px; margin-top: 10px; }
+
+    #status-fonte { text-align: center; font-size: 13px; margin-bottom: 20px; color: #78909c; }
+    .fonte-fallback { color: #ffb74d !important; }
+
+    table { width: 100%; border-collapse: collapse; max-width: 950px; margin: 0 auto; }
+    th { background: #1565c0; color: white; padding: 14px 20px; font-size: 17px; text-align: left; }
+    td { padding: 18px 20px; font-size: 22px; font-weight: bold; border-bottom: 1px solid #1e3a5f; }
+    tr:nth-child(even) td { background: #0f2940; }
+    tr:nth-child(odd)  td { background: #112233; }
+    tr.chamado td { background: #0d3b6e !important; }
+    tr.chamado .nome { color: #64b5f6; }
+
+    .badge {
+      display: inline-block; padding: 4px 16px; border-radius: 20px;
+      font-size: 14px; font-weight: bold; color: white;
+    }
+    .badge.Vermelho { background: #c62828; }
+    .badge.Amarelo  { background: #f57f17; }
+    .badge.Verde    { background: #2e7d32; }
+    .badge.Chamado  { background: #1565c0; }
+    .badge.Aguardando { background: #4a4a4a; }
+    .badge.Atendido { background: #616161; }
+
+    .senha { font-family: monospace; font-size: 20px; color: #ffd54f; }
+    #vazio { text-align: center; color: #546e7a; font-size: 22px; padding: 60px; display:none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🏥 PAINEL DE CHAMADAS</h1>
+    <p>Sala de Espera — Triagem</p>
+    <div id="relogio">--:--:--</div>
+  </header>
+
+  <div id="status-fonte">Conectando...</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Senha</th>
+        <th>Paciente</th>
+        <th>Consultório</th>
+        <th>Prioridade</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="corpo"></tbody>
+  </table>
+  <div id="vazio">Nenhum paciente na fila no momento.</div>
+
+  <script>
+    const API = "http://localhost:5000";
+
+    setInterval(() => {
+      document.getElementById("relogio").textContent =
+        new Date().toLocaleTimeString("pt-BR");
+    }, 1000);
+
+    async function atualizar() {
+      try {
+        const r = await fetch(`${API}/painel`);
+        const d = await r.json();
+
+        const statusEl = document.getElementById("status-fonte");
+        statusEl.textContent = d.degradado
+          ? "⚠ Modo fallback — dados do PostgreSQL (MySQL indisponível)"
+          : "✔ Dados em tempo real — MySQL";
+        statusEl.className = d.degradado ? "fonte-fallback" : "";
+
+        const dados = (d.dados || []).filter(p => p.status !== "Atendido");
+        const corpo = document.getElementById("corpo");
+        const vazio = document.getElementById("vazio");
+
+        if (!dados.length) {
+          corpo.innerHTML = "";
+          vazio.style.display = "block";
+          return;
+        }
+        vazio.style.display = "none";
+
+        // mostra Chamado no topo
+        dados.sort((a,b) => {
+          if (a.status === "Chamado" && b.status !== "Chamado") return -1;
+          if (b.status === "Chamado" && a.status !== "Chamado") return 1;
+          return 0;
+        });
+
+        corpo.innerHTML = dados.map(p => `
+          <tr class="${p.status === 'Chamado' ? 'chamado' : ''}">
+            <td class="senha">${p.senha || "—"}</td>
+            <td class="nome">${p.nome_paciente}</td>
+            <td>${p.consultorio ? "Consultório " + p.consultorio : "—"}</td>
+            <td><span class="badge">${p.status || "—"}</span></td>
+            <td><span class="badge ${p.status}">${p.status}</span></td>
+          </tr>
+        `).join("");
+      } catch(e) {
+        document.getElementById("status-fonte").textContent = "❌ Sem conexão com a API";
+      }
+    }
+
+    atualizar();
+    setInterval(atualizar, 5000);
+  </script>
+</body>
+</html>
